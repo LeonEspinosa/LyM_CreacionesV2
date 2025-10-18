@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Ver Pedidos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-body { font-family: 'Poppins', sans-serif; }
+        .notification { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100 font-body">
+
+    <div id="notification-container" class="fixed top-5 right-5 z-50"></div>
+
+    <div class="container mx-auto p-8">
+        <h1 class="font-display text-4xl font-bold text-gray-800 mb-4">Panel de Administración</h1>
+
+        <div class="mb-8 border-b border-gray-200">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                 <a href="admin.html" class="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-1 pb-4 text-sm">Gestionar Productos</a>
+                <span class="font-bold text-pink-600 border-b-2 border-pink-600 px-1 pb-4 text-sm">Ver Pedidos</span>
+            </nav>
+        </div>
+        
+        <div id="view-orders">
+             <h2 class="font-display text-2xl font-bold text-gray-700 mb-6">Pedidos Recibidos</h2>
+             <ul id="order-list" class="space-y-4"></ul>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <script>
+        const ordersApp = {
+            apiBaseUrl: 'http://localhost:3000',
+
+            init() {
+                this.loadOrders();
+                document.getElementById('order-list').addEventListener('click', this.handleOrderListClick.bind(this));
+            },
+
+            async loadOrders() {
+                try {
+                    const response = await fetch(`${this.apiBaseUrl}/api/orders`, { headers: { 'x-admin-secret': 'tu-clave-secreta-aqui' }});
+                     if (!response.ok) throw new Error('No se pudieron obtener los pedidos');
+                    const orders = await response.json();
+                    const listContainer = document.getElementById('order-list');
+                    listContainer.innerHTML = '';
+                    if (!orders.length) { 
+                        listContainer.innerHTML = '<li><p>No se han recibido pedidos.</p></li>'; 
+                        return; 
+                    }
+                    orders.forEach(o => listContainer.appendChild(this.createOrderListItem(o)));
+                    lucide.createIcons();
+                } catch (error) { 
+                    console.error("Error al cargar pedidos:", error);
+                    this.showNotification('Error al cargar pedidos.', 'error'); 
+                }
+            },
+            
+            createOrderListItem(order) {
+                const li = document.createElement('li');
+                li.className = "bg-white border rounded-lg shadow-sm overflow-hidden mb-4";
+                
+                const statusColors = {
+                    'preparando': 'bg-blue-100 text-blue-800',
+                    'en tránsito': 'bg-yellow-100 text-yellow-800',
+                    'entregado': 'bg-green-100 text-green-800'
+                };
+                const statusBadge = `<span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColors[order.shipping_status] || 'bg-gray-100'}">${order.shipping_status}</span>`;
+                
+                const itemsHtml = order.items.map(item => `
+                    <li class="flex justify-between text-sm py-1 border-b">
+                        <span>${item.quantity} x ${item.productName || 'Producto Eliminado'}</span>
+                        <div class="text-right">
+                            <p>$${item.item_subtotal.toFixed(2)}</p>
+                            ${item.discount_applied > 0 ? `<p class="text-xs text-green-600">Ahorro: $${item.discount_applied.toFixed(2)}</p>` : ''}
+                        </div>
+                    </li>`).join('');
+
+                li.innerHTML = `
+                    <div class="p-4 flex justify-between items-center cursor-pointer order-summary">
+                        <div>
+                            <p class="font-bold text-gray-800">Pedido #${order.id}</p>
+                            <p class="text-sm text-gray-600">${new Date(order.order_date).toLocaleString('es-AR')}</p>
+                            <div class="mt-2">${statusBadge}</div>
+                        </div>
+                        <div class="text-right">
+                            <p class="font-bold text-lg text-pink-600">$${order.total_amount.toFixed(2)} ${order.currency}</p>
+                            <i data-lucide="chevron-down" class="mx-auto mt-1 text-gray-500"></i>
+                        </div>
+                    </div>
+                    <div class="order-details bg-gray-50 border-t" style="max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out;">
+                        <div class="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div><h4 class="font-semibold text-sm mb-1">Cliente</h4><p class="text-sm">${order.customer_firstName} ${order.customer_lastName}<br>${order.customer_phone}</p></div>
+                            <div><h4 class="font-semibold text-sm mb-1">Envío</h4><p class="text-sm">${order.pickup_at_store ? 'Retira en local' : `${order.shipping_address || ''}, ${order.shipping_city || ''}`}</p></div>
+                            <div><h4 class="font-semibold text-sm mb-1">Resumen Financiero</h4>
+                                <p class="text-sm">Envío: $${order.shipping_cost.toFixed(2)}</p>
+                                <p class="text-sm">Impuestos: $${order.taxes.toFixed(2)}</p>
+                                <p class="text-sm font-bold">Total: $${order.total_amount.toFixed(2)}</p>
+                            </div>
+                             <div><h4 class="font-semibold text-sm mb-1">Fechas</h4>
+                                <p class="text-sm">Entrega: ${new Date(order.delivery_date).toLocaleDateString('es-AR', { timeZone: 'UTC' })}</p>
+                                <p class="text-sm">Últ. Act: ${new Date(order.update_date).toLocaleString('es-AR')}</p>
+                            </div>
+                            <div class="md:col-span-2"><h4 class="font-semibold text-sm mb-1">Items</h4><ul class="space-y-1">${itemsHtml}</ul></div>
+                        </div>
+                    </div>`;
+                return li;
+            },
+
+            handleOrderListClick(event) {
+                const summary = event.target.closest('.order-summary');
+                if (!summary) return;
+                const details = summary.nextElementSibling;
+                const icon = summary.querySelector('i[data-lucide="chevron-down"]');
+                if (details.style.maxHeight && details.style.maxHeight !== '0px') {
+                    details.style.maxHeight = '0px';
+                    if(icon) icon.style.transform = 'rotate(0deg)';
+                } else {
+                    details.style.maxHeight = details.scrollHeight + 'px';
+                    if(icon) icon.style.transform = 'rotate(180deg)';
+                }
+            },
+
+            showNotification(message, type = 'success') {
+                const container = document.getElementById('notification-container');
+                const notification = document.createElement('div');
+                notification.className = `notification transform translate-x-full ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white py-2 px-4 rounded-md shadow-lg mb-2`;
+                notification.textContent = message;
+                container.appendChild(notification);
+                setTimeout(() => notification.classList.remove('translate-x-full'), 10);
+                setTimeout(() => {
+                    notification.classList.add('translate-x-full');
+                    setTimeout(() => notification.remove(), 3000);
+                }, 3000);
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => ordersApp.init());
+    </script>
+</body>
+</html>

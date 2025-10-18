@@ -1,0 +1,23 @@
+    /* Importación de Fuentes */
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap');
+
+    /* Configuración base de Tailwind CSS */
+    @tailwind base;
+    @tailwind components;
+    @tailwind utilities;
+
+    /* Estilos personalizados que teníamos en el <head> */
+    .font-display { font-family: 'Playfair Display', serif; }
+    .font-body { font-family: 'Poppins', sans-serif; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .add-to-cart-confirmation { transition: opacity 0.3s ease-in-out; }
+    #shipping-details { transition: opacity 0.3s ease-in-out; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .thumbnail-active { border: 2px solid #EC4899; box-shadow: 0 0 8px rgba(236, 72, 153, 0.5); }
+    #lightbox-content:hover #lightbox-image {
+        transform-origin: var(--x-mouse) var(--y-mouse);
+        transform: scale(2);
+    }
+    
+
