@@ -1,5 +1,6 @@
-// 1. Importamos el componente que acabamos de crear.
+// 1. Importamos los componentes necesarios
 import { createProductCard } from '../components/productCard.js';
+import { createIcons, icons } from 'lucide';
 
 const homeHTML = `
   <section id="home" class="page active">
@@ -8,40 +9,109 @@ const homeHTML = `
         <p class="text-xl mt-4 text-gray-700">Tesoros artesanales que cuentan una historia.</p>
         <button id="home-view-products-btn" class="mt-8 bg-pink-500 text-white font-bold py-3 px-8 rounded-full hover:bg-pink-600 transition-colors">Ver todos los productos</button>
     </div>
+
+    <!-- Sección del Carrusel de Videos -->
+    <div id="video-carousel-section" class="container mx-auto px-6 py-12 hidden">
+        <h3 class="font-display text-3xl text-center font-bold text-gray-800 mb-8">Nuestras Creaciones en Video</h3>
+        <div class="relative w-full max-w-4xl mx-auto bg-gray-200 rounded-lg shadow-xl overflow-hidden">
+            <div id="carousel-video-player" class="aspect-video w-full">
+                <iframe class="w-full h-full" src="" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            </div>
+            <div class="absolute inset-0 flex items-center justify-between p-4 pointer-events-none">
+                <button id="carousel-prev-btn" class="p-3 bg-white/70 rounded-full shadow-md text-gray-700 hover:bg-white transition-colors pointer-events-auto">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <button id="carousel-next-btn" class="p-3 bg-white/70 rounded-full shadow-md text-gray-700 hover:bg-white transition-colors pointer-events-auto">
+                    <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+            <div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-3 text-center">
+                <p id="carousel-product-name" class="font-semibold text-lg"></p>
+            </div>
+        </div>
+    </div>
+    <!-- Fin Sección del Carrusel de Videos -->
+
     <div class="container mx-auto px-6 py-12">
         <h3 class="font-display text-3xl text-center font-bold text-gray-800 mb-8">Productos Destacados</h3>
         <ul id="featured-products" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          <!-- Mensaje de carga inicial -->
-          <p class="col-span-full text-center text-gray-500">Cargando productos...</p>
+            <p class="col-span-full text-center text-gray-500">Cargando productos...</p>
         </ul>
     </div>
   </section>
 `;
 
-/**
- * Dibuja la página de inicio y la puebla con los productos destacados.
- * @param {HTMLElement} appContainer - El elemento <main> donde se inyectará el HTML.
- * @param {Array} products - La lista completa de productos de la tienda.
- * @param {function} onProductClick - La función a ejecutar cuando se hace clic en una tarjeta de producto.
- * @param {function} onAddToCartClick - La función a ejecutar para añadir al carrito.
- */
-export const renderHomePage = (appContainer, products, onProductClick, onAddToCartClick) => {
-  appContainer.innerHTML = homeHTML;
+let currentVideoIndex = 0;
+let carouselVideos = [];
 
-  const featuredProductsContainer = document.getElementById('featured-products');
-  const featuredProducts = products.filter(p => p.featured);
+const updateCarouselVideo = () => {
+    if (carouselVideos.length === 0) {
+        document.getElementById('video-carousel-section').classList.add('hidden');
+        return;
+    }
 
-  featuredProductsContainer.innerHTML = ''; // Limpiamos el "cargando".
+    document.getElementById('video-carousel-section').classList.remove('hidden');
+    const videoData = carouselVideos[currentVideoIndex];
+    const videoIframe = document.querySelector('#carousel-video-player iframe');
+    const productNameEl = document.getElementById('carousel-product-name');
 
-  if (featuredProducts.length === 0) {
-    featuredProductsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">No hay productos destacados en este momento.</p>';
-    return;
-  }
-
-  // 2. Por cada producto destacado, usamos nuestro componente para crear una tarjeta.
-  // AHORA le pasamos las funciones que recibimos como parámetro.
-  featuredProducts.forEach(product => {
-    const card = createProductCard(product, onProductClick, onAddToCartClick);
-    featuredProductsContainer.appendChild(card);
-  });
+    const videoId = videoData.video_url.split('v=')[1]?.split('&')[0];
+    if (videoId) {
+        videoIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0`;
+        productNameEl.textContent = videoData.name;
+    }
 };
+
+const setupCarousel = (videos) => {
+    carouselVideos = videos;
+    if (carouselVideos.length > 0) {
+        currentVideoIndex = 0;
+        updateCarouselVideo();
+    } else {
+        document.getElementById('video-carousel-section').classList.add('hidden');
+    }
+
+    const prevBtn = document.getElementById('carousel-prev-btn');
+    const nextBtn = document.getElementById('carousel-next-btn');
+
+    if (prevBtn) {
+        prevBtn.onclick = () => {
+            currentVideoIndex = (currentVideoIndex - 1 + carouselVideos.length) % carouselVideos.length;
+            updateCarouselVideo();
+        };
+    }
+    
+    if (nextBtn) {
+        nextBtn.onclick = () => {
+            currentVideoIndex = (currentVideoIndex + 1) % carouselVideos.length;
+            updateCarouselVideo();
+        };
+    }
+    
+    createIcons({ icons });
+};
+
+export const renderHomePage = (appContainer, featuredProducts, featuredVideos, onProductClick, onAddToCartClick) => {
+    appContainer.innerHTML = homeHTML;
+
+    // 1. Configurar el Carrusel de Videos con la lista que nos llega
+    setupCarousel(featuredVideos);
+
+    const featuredProductsContainer = document.getElementById('featured-products');
+    featuredProductsContainer.innerHTML = ''; // Limpiamos el "cargando".
+
+    // 2. CORRECCIÓN: Usamos la lista de `featuredProducts` directamente, sin volver a filtrar.
+    if (featuredProducts.length === 0) {
+        featuredProductsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">No hay productos destacados en este momento.</p>';
+        return;
+    }
+
+    // 3. Renderizamos las tarjetas de producto con la lista ya filtrada.
+    featuredProducts.forEach(product => {
+        const card = createProductCard(product, onProductClick, onAddToCartClick);
+        featuredProductsContainer.appendChild(card);
+    });
+    
+    createIcons({ icons });
+};
+

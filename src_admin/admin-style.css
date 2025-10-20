@@ -1,0 +1,33 @@
+/* Importación de Fuentes */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap');
+
+/* Configuración base de Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos personalizados */
+.font-display { font-family: 'Playfair Display', serif; }
+.font-body { font-family: 'Poppins', sans-serif; }
+.notification { transition: transform 0.3s ease-in-out; }
+.image-preview-item { position: relative; }
+.image-preview-item .remove-btn {
+    position: absolute; top: -5px; right: -5px; background-color: #ef4444; color: white;
+    border-radius: 9999px; width: 20px; height: 20px; display: flex;
+    align-items: center; justify-content: center; cursor: pointer; font-weight: bold;
+    border: none; line-height: 1; font-size: 14px;
+}
+input[type="text"]:read-only, textarea:read-only { 
+    background-color: #f3f4f6; 
+    cursor: not-allowed; 
+}
+input[type="checkbox"] {
+    cursor: pointer;
+}
+
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] { -moz-appearance: textfield; }

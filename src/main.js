@@ -5,6 +5,7 @@ import { createIcons, icons } from 'lucide';
 import { renderHeader, updateHeaderCartCount } from './components/header.js';
 import { renderFooter } from './components/footer.js';
 import { renderCartModal, updateCartModalContent } from './components/cartModal.js';
+import * as Lightbox from './components/lightbox.js';
 
 // Importación de Páginas
 import { renderHomePage } from './pages/home.js';
@@ -18,132 +19,121 @@ import { renderThanksPage } from './pages/thanks.js';
 import * as Cart from './js/cart.js';
 
 const app = {
-  state: {
-    products: [],
-    cart: [],
-    currentPage: 'home',
-    currentProduct: null,
-    shippingCost: 0,
-    // Puedes ajustar estos códigos postales y costos según tus zonas
-    shippingZones: { '4616': 500, '4600': 550, '4000': 800 }, 
-  },
+  state: {
+    products: [],
+    cart: [],
+    currentPage: 'home',
+    currentProduct: null,
+    shippingCost: 0,
+    minimumDeliveryDate: '', // <-- AÑADIDO: Para la nueva lógica de envío
+  },
 
-  async init() {
-    console.log("Aplicación inicializada.");
-    this.state.cart = Cart.loadCart();
-    this.renderLayout();
-    await this.fetchProducts();
-    this.navigateTo(this.state.currentPage);
-    this.updateCartUI();
-  },
+  async init() {
+    console.log("Aplicación inicializada.");
+    this.state.cart = Cart.loadCart();
+    this.renderLayout();
+    await this.fetchProducts();
+    this.navigateTo(this.state.currentPage);
+    this.updateCartUI();
+  },
 
-  renderLayout() {
-    const headerContainer = document.getElementById('main-header');
-    const footerContainer = document.getElementById('main-footer');
-    const cartModalContainer = document.getElementById('cart-modal');
+  renderLayout() {
+    const headerContainer = document.getElementById('main-header');
+    const footerContainer = document.getElementById('main-footer');
+    const cartModalContainer = document.getElementById('cart-modal');
+    const lightboxContainer = document.getElementById('lightbox-container');
 
-    renderHeader(
-        headerContainer, 
-        (page) => this.navigateTo(page),
-        () => this.toggleCartModal(true)
-    );
-    renderFooter(footerContainer);
-    renderCartModal(cartModalContainer);
+    renderHeader(headerContainer, (page) => this.navigateTo(page), () => this.toggleCartModal(true));
+    renderFooter(footerContainer);
+    renderCartModal(cartModalContainer);
+    Lightbox.renderLightbox(lightboxContainer);
 
-    // Conectar eventos del modal del carrito
-    document.getElementById('close-cart-btn').addEventListener('click', () => this.toggleCartModal(false));
-    cartModalContainer.addEventListener('click', (e) => {
-        if (e.target.id === 'cart-modal') this.toggleCartModal(false);
-    });
-    document.getElementById('checkout-modal-btn').addEventListener('click', () => {
-        this.toggleCartModal(false);
-        this.navigateTo('checkout');
-    });
+    document.getElementById('close-cart-btn').addEventListener('click', () => this.toggleCartModal(false));
+    cartModalContainer.addEventListener('click', (e) => {
+        if (e.target.id === 'cart-modal') this.toggleCartModal(false);
+    });
+    document.getElementById('checkout-modal-btn').addEventListener('click', () => {
+        this.toggleCartModal(false);
+        this.navigateTo('checkout');
+    });
 
-    createIcons({ icons });
-  },
+    createIcons({ icons });
+  },
 
-  async fetchProducts() {
-    try {
-      const response = await fetch('http://localhost:3000/api/products');
-      if (!response.ok) throw new Error('La respuesta de la red no fue exitosa.');
-      this.state.products = await response.json();
-    } catch (error) {
-      console.error("Error al obtener los productos:", error);
-      document.getElementById('app').innerHTML = `<p class="text-center text-red-500 mt-10">Error al cargar los productos. Asegúrate de que el servidor backend esté funcionando.</p>`;
-    }
-  },
+  async fetchProducts() {
+    try {
+      const response = await fetch('http://localhost:3000/api/products');
+      if (!response.ok) throw new Error('La respuesta de la red no fue exitosa.');
+      this.state.products = await response.json();
+    } catch (error) {
+      console.error("Error al obtener los productos:", error);
+      document.getElementById('app').innerHTML = `<p class="text-center text-red-500 mt-10">Error al cargar los productos. Asegúrate de que el servidor backend esté funcionando.</p>`;
+    }
+  },
 
-  navigateTo(page) {
-    this.state.currentPage = page;
-    window.scrollTo(0, 0);
-    const appContainer = document.getElementById('app');
-    const onProductClick = (id) => this.showProductDetail(id);
-    const onAddToCartClick = (id, el) => this.handleAddToCart(id, el);
+  navigateTo(page) {
+    this.state.currentPage = page;
+    window.scrollTo(0, 0);
+    const appContainer = document.getElementById('app');
+    const onProductClick = (id) => this.showProductDetail(id);
+    const onAddToCartClick = (id, el) => this.handleAddToCart(id, el);
 
-    switch (page) {
-      case 'home':
-        renderHomePage(appContainer, this.state.products, onProductClick, onAddToCartClick);
+    switch (page) {
+      case 'home':
+        const featuredProducts = this.state.products.filter(p => p.featured);
+        const featuredProductsWithVideos = featuredProducts.filter(p => p.video_url && p.video_url.includes('youtube.com'));
+        renderHomePage(appContainer, featuredProducts, featuredProductsWithVideos, onProductClick, onAddToCartClick);
         document.getElementById('home-view-products-btn').addEventListener('click', () => this.navigateTo('shop'));
         break;
-      
-      case 'shop':
-        renderShopPage(appContainer, this.state.products, onProductClick, onAddToCartClick);
-        break;
+      
+      case 'shop':
+        renderShopPage(appContainer, this.state.products, onProductClick, onAddToCartClick);
+        break;
 
-      case 'about':
-        renderAboutPage(appContainer);
-        break;
+      case 'about':
+        renderAboutPage(appContainer);
+        break;
 
-      case 'product-detail':
-        const product = this.state.products.find(p => p.id === this.state.currentProduct?.id);
-        renderProductDetailPage(
-          appContainer,
-          product,
-          () => this.navigateTo('shop'),
-          (id, qty) => this.handleAddToCartFromDetail(id, qty)
-        );
-        break;
+      case 'product-detail':
+        const product = this.state.products.find(p => p.id === this.state.currentProduct?.id);
+        renderProductDetailPage(appContainer, product, () => this.navigateTo('shop'), (id, qty) => this.handleAddToCartFromDetail(id, qty), (imageUrl) => Lightbox.showLightbox(imageUrl));
+        break;
 
-      case 'checkout':
-        renderCheckoutPage(
-            appContainer,
-            { cart: this.state.cart, shippingCost: this.state.shippingCost },
-            {
-                onFormInput: () => this.validateCheckoutForm(),
-                onShippingToggle: (e) => this.handleShippingToggle(e.target.checked),
-                onZipChange: () => this.calculateShipping(),
-                onPlaceOrder: () => this.placeOrder()
-            }
-        );
-        break;
+      case 'checkout':
+        // --- INICIO DE LA MODIFICACIÓN ---
+        renderCheckoutPage(appContainer, { cart: this.state.cart, shippingCost: this.state.shippingCost }, { 
+            onPlaceOrder: (shippingInfo) => this.placeOrder(shippingInfo), 
+            onToggleShipping: (isPickup) => this.toggleShippingFields(isPickup), 
+            onCalculateShipping: () => this.calculateShipping(), 
+            onValidate: () => this.validateCheckout() 
+        });
+        // --- FIN DE LA MODIFICACIÓN ---
+        break;
 
-      case 'thanks':
-        renderThanksPage(appContainer, () => this.navigateTo('home'));
-        break;
+      case 'thanks':
+        renderThanksPage(appContainer, () => this.navigateTo('home'));
+        break;
 
-      default:
-        this.navigateTo('home');
-        break;
-    }
-    createIcons({ icons });
-  },
+      default:
+        this.navigateTo('home');
+        break;
+    }
+  },
 
-  showProductDetail(productId) {
-    this.state.currentProduct = this.state.products.find(p => p.id === productId);
-    if (this.state.currentProduct) {
-        this.navigateTo('product-detail');
-    }
-  },
+  showProductDetail(productId) {
+    this.state.currentProduct = this.state.products.find(p => p.id === productId);
+    if (this.state.currentProduct) {
+        this.navigateTo('product-detail');
+    }
+  },
 
-  // --- Lógica del Carrito ---
-  handleAddToCart(productId, buttonElement) {
+  handleAddToCart(productId, buttonElement) {
     const product = this.state.products.find(p => p.id === productId);
     const cardElement = buttonElement.closest('li');
     const quantityInput = cardElement.querySelector('.quantity-input');
     const quantity = parseInt(quantityInput.value);
-
-    if (product && quantity > 0) {
+    if (isNaN(quantity) || quantity < 1) return;
+    if (product) {
       Cart.addToCart(product, quantity);
       this.updateCartUI();
       const confirmation = cardElement.querySelector('.add-to-cart-confirmation');
@@ -152,136 +142,196 @@ const app = {
         createIcons({ icons });
         setTimeout(() => confirmation.classList.add('opacity-0'), 1500);
       }
-      quantityInput.value = 1;
+      quantityInput.value = product.min_purchase_quantity || 1;
     }
-  },
+  },
 
-  handleAddToCartFromDetail(productId, quantity) {
-      const product = this.state.products.find(p => p.id === productId);
-      if (product && quantity > 0) {
-          Cart.addToCart(product, quantity);
-          this.updateCartUI();
-          const confirmation = document.getElementById('detail-add-confirmation');
-          if (confirmation) {
-              confirmation.classList.remove('opacity-0');
-              createIcons({ icons });
-              setTimeout(() => confirmation.classList.add('opacity-0'), 1500);
-          }
-      }
-  },
+  handleAddToCartFromDetail(productId, quantity) {
+    const product = this.state.products.find(p => p.id === productId);
+    if (isNaN(quantity) || quantity < 1) return;
+    if (product) {
+        Cart.addToCart(product, quantity);
+        this.updateCartUI();
+        const confirmation = document.getElementById('detail-add-confirmation');
+        if (confirmation) {
+            confirmation.classList.remove('opacity-0');
+            createIcons({ icons });
+            setTimeout(() => confirmation.classList.add('opacity-0'), 1500);
+        }
+    }
+  },
 
-  updateCartUI() {
-    this.state.cart = Cart.getCart();
-    const totals = Cart.getCartTotals();
-    updateHeaderCartCount(totals.totalItems);
-    updateCartModalContent(this.state.cart, totals, {
-      increase: (id) => { Cart.increaseQuantity(id); this.updateCartUI(); },
-      decrease: (id) => { Cart.decreaseQuantity(id); this.updateCartUI(); },
-      remove: (id) => { Cart.removeFromCart(id); this.updateCartUI(); },
-    });
-    // Si estamos en la página de checkout, también actualizamos su resumen
-    if (this.state.currentPage === 'checkout') {
+  updateCartUI() {
+    this.state.cart = Cart.getCart();
+    const totals = Cart.getCartTotals();
+    updateHeaderCartCount(totals.totalItems);
+    updateCartModalContent(this.state.cart, totals, {
+      increase: (id) => { Cart.increaseQuantity(id); this.updateCartUI(); },
+      decrease: (id) => { Cart.decreaseQuantity(id); this.updateCartUI(); },
+      remove: (id) => { Cart.removeFromCart(id); this.updateCartUI(); },
+    });
+    if (this.state.currentPage === 'checkout') {
+        updateCheckoutSummary(this.state.cart, this.state.shippingCost);
+    }
+  },
+
+  toggleCartModal(show) {
+    document.getElementById('cart-modal').classList.toggle('hidden', !show);
+    if (show) this.updateCartUI();
+  },
+
+  // --- INICIO: SECCIÓN DE CHECKOUT ACTUALIZADA ---
+  async calculateShipping() {
+    const zipInput = document.getElementById('zip');
+    const postalCode = zipInput.value.trim();
+    const btn = document.getElementById('calculate-shipping-btn');
+    const msgEl = document.getElementById('shipping-message');
+
+    if (!postalCode) {
+        msgEl.textContent = "Por favor, ingresa un código postal.";
+        msgEl.className = 'text-sm mt-2 text-red-500';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Calculando...';
+    msgEl.textContent = '';
+
+    try {
+        const response = await fetch('http://localhost:3000/api/shipping/calculate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postalCode, cart: this.state.cart.map(i => ({id: i.id, quantity: i.quantity})) })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        this.state.shippingCost = data.shippingCost;
+        this.state.minimumDeliveryDate = data.minimumDeliveryDate;
+
+        msgEl.textContent = `Costo de envío: $${data.shippingCost.toFixed(2)}`;
+        msgEl.className = 'text-sm mt-2 text-green-600';
+        
+        const deliveryDateInput = document.getElementById('deliveryDate');
+        deliveryDateInput.value = data.minimumDeliveryDate;
+        deliveryDateInput.min = data.minimumDeliveryDate;
+
+    } catch (error) {
+        this.state.shippingCost = 0;
+        this.state.minimumDeliveryDate = '';
+        msgEl.textContent = error.message;
+        msgEl.className = 'text-sm mt-2 text-red-500';
+        document.getElementById('deliveryDate').value = '';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Calcular Envío';
         updateCheckoutSummary(this.state.cart, this.state.shippingCost);
+        this.validateCheckout();
     }
-    createIcons({ icons });
   },
 
-  toggleCartModal(show) {
-    document.getElementById('cart-modal').classList.toggle('hidden', !show);
-    if (show) this.updateCartUI();
+  toggleShippingFields(isPickup) {
+    const details = document.getElementById('shipping-details');
+    details.classList.toggle('hidden', isPickup);
+    
+    ['address', 'city', 'zip'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.required = !isPickup;
+    });
+
+    if (isPickup) {
+        this.state.shippingCost = 0;
+        const deliveryDateInput = document.getElementById('deliveryDate');
+        deliveryDateInput.value = '';
+        deliveryDateInput.readOnly = false;
+        deliveryDateInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+    } else {
+        const deliveryDateInput = document.getElementById('deliveryDate');
+        deliveryDateInput.value = '';
+        deliveryDateInput.readOnly = true;
+        deliveryDateInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+    }
+    updateCheckoutSummary(this.state.cart, this.state.shippingCost);
+    this.validateCheckout();
+  },
+  
+  validateCheckout() {
+    const form = document.getElementById('shipping-form');
+    if (!form) return;
+    const pickup = form.elements.pickupAtStore.checked;
+    const btn = document.getElementById('place-order-btn');
+    
+    let isFormValid = true;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    let fieldsToValidate = ['firstName', 'lastName', 'customer_dni', 'customer_email', 'contactNumber'];
+    if (pickup) {
+        fieldsToValidate.push('deliveryDate');
+    }
+
+    fieldsToValidate.forEach(id => {
+        const input = form.elements[id];
+        const errorEl = document.getElementById(`${id}-error`);
+        let isValid = input && input.value.trim() !== '';
+        
+        if (id === 'customer_email' && isValid) {
+            isValid = emailRegex.test(input.value.trim());
+        }
+
+        if (!isValid) isFormValid = false;
+        if(errorEl) errorEl.classList.toggle('hidden', isValid);
+    });
+
+    if (!pickup) {
+        ['address', 'city', 'zip'].forEach(id => {
+            const input = form.elements[id];
+            if (input && !input.value.trim()) isFormValid = false;
+        });
+        if(!this.state.minimumDeliveryDate) isFormValid = false;
+    }
+
+    if (this.state.cart.length === 0) isFormValid = false;
+    if (btn) btn.disabled = !isFormValid;
   },
 
-  // --- Lógica de Checkout ---
-  handleShippingToggle(isPickup) {
-      const details = document.getElementById('shipping-details');
-      ['address', 'city', 'zip'].forEach(id => {
-          const el = document.getElementById(id);
-          el.disabled = isPickup;
-          el.required = !isPickup;
-          if (isPickup) el.value = '';
-      });
-      details.style.opacity = isPickup ? '0.4' : '1';
-      document.getElementById('shipping-message').textContent = isPickup ? 'Retiro en el negocio.' : '';
-      this.state.shippingCost = isPickup ? 0 : this.state.shippingCost;
-      if (!isPickup) this.calculateShipping(); else updateCheckoutSummary(this.state.cart, 0);
-      this.validateCheckoutForm();
+  async placeOrder(shippingInfo) {
+    const cartItemsForOrder = this.state.cart.map(item => ({ id: item.id, quantity: item.quantity, is_customized: item.is_customized || 0, custom_detail: item.custom_detail || null }));
+    
+    // --- INICIO DE LA CORRECCIÓN ---
+    // Creamos un nuevo objeto que incluye tanto la info del formulario
+    // como el costo de envío calculado que está en el estado de la app.
+    const finalShippingInfo = {
+        ...shippingInfo,
+        shippingCost: this.state.shippingCost
+    };
+    // --- FIN DE LA CORRECCIÓN ---
+
+    try {
+        const response = await fetch('http://localhost:3000/api/orders', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            // Enviamos el objeto corregido
+            body: JSON.stringify({ cart: cartItemsForOrder, shippingInfo: finalShippingInfo }) 
+        });
+        if (!response.ok) throw new Error((await response.json()).error || 'Error del servidor');
+        
+        this.navigateTo('thanks');
+        Cart.emptyCart();
+        this.updateCartUI(); 
+    } catch (error) {
+        console.error('No se pudo completar tu pedido: ' + error.message);
+        const msgEl = document.getElementById('shipping-message');
+        if(msgEl) {
+            msgEl.textContent = `Error al realizar el pedido: ${error.message}`;
+            msgEl.className = 'text-sm mt-2 text-red-500';
+        }
+    }
   },
-
-  calculateShipping() {
-      if (document.getElementById('pickupAtStore').checked) return;
-      const zip = document.getElementById('zip').value;
-      const msgEl = document.getElementById('shipping-message');
-      const cost = this.state.shippingZones[zip];
-
-      if (cost !== undefined) {
-          this.state.shippingCost = cost;
-          msgEl.textContent = `Costo de envío: $${this.state.shippingCost.toFixed(2)}`;
-          msgEl.className = 'text-sm mt-2 text-green-600';
-      } else {
-          this.state.shippingCost = 0;
-          msgEl.textContent = zip.length >= 3 ? 'Lo sentimos, no hacemos envíos a esta zona.' : '';
-          if (zip.length >= 3) msgEl.className = 'text-sm mt-2 text-red-600';
-      }
-      updateCheckoutSummary(this.state.cart, this.state.shippingCost);
-  },
-
-  validateCheckoutForm() {
-      const form = document.getElementById('shipping-form');
-      if (!form) return;
-      const pickup = form.elements.pickupAtStore.checked;
-      let isFormValid = true;
-      
-      const fieldsToValidate = ['firstName', 'lastName', 'contactNumber', 'deliveryDate'];
-      if (!pickup) fieldsToValidate.push('address', 'city', 'zip');
-
-      fieldsToValidate.forEach(id => {
-          const input = form.elements[id];
-          const errorEl = document.getElementById(`${id}-error`);
-          const isValid = input.value.trim() !== '';
-          if (!isValid) isFormValid = false;
-          errorEl.classList.toggle('hidden', isValid);
-      });
-
-      if (this.state.cart.length === 0) isFormValid = false;
-      if (!pickup && this.state.shippingCost === 0 && form.elements.zip.value.length >= 3) isFormValid = false;
-      
-      document.getElementById('place-order-btn').disabled = !isFormValid;
-  },
-
-  async placeOrder() {
-      const form = document.getElementById('shipping-form');
-      const pickup = form.elements.pickupAtStore.checked;
-      const shippingInfo = {
-          firstName: form.elements.firstName.value.trim(),
-          lastName: form.elements.lastName.value.trim(),
-          contactNumber: form.elements.contactNumber.value.trim(),
-          deliveryDate: form.elements.deliveryDate.value,
-          pickupAtStore: pickup,
-          address: pickup ? null : form.elements.address.value.trim(),
-          city: pickup ? null : form.elements.city.value.trim(),
-          zip: pickup ? null : form.elements.zip.value.trim()
-      };
-      
-      const total = Cart.getCartTotals().subtotal + this.state.shippingCost;
-      
-      try {
-          const response = await fetch('http://localhost:3000/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cart: this.state.cart, shippingInfo, total })
-          });
-          if (!response.ok) throw new Error((await response.json()).error || 'Error del servidor');
-          
-          this.navigateTo('thanks');
-          Cart.removeFromCart(); // Vacía el carrito
-          this.updateCartUI();
-      } catch (error) {
-          alert('No se pudo completar tu pedido. Detalle: ' + error.message);
-      }
-  },
+  // --- FIN: SECCIÓN DE CHECKOUT ACTUALIZADA ---
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  app.init();
+  app.init();
 });
 

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Gestionar Zonas de Envío</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        .font-display { font-family: 'Playfair Display', serif; }
+        .font-body { font-family: 'Poppins', sans-serif; }
+        .notification { transition: transform 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-100 font-body">
+
+    <div id="notification-container" class="fixed top-5 right-5 z-50"></div>
+
+    <div class="container mx-auto p-8">
+        <h1 class="font-display text-4xl font-bold text-gray-800 mb-4">Panel de Administración</h1>
+
+        <div class="mb-8 border-b border-gray-200">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                <a href="admin.html" class="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-1 pb-4 text-sm">Gestionar Productos</a>
+                <a href="admin-orders.html" class="text-gray-500 hover:text-gray-700 hover:border-gray-300 px-1 pb-4 text-sm">Ver Pedidos</a>
+                <span class="font-bold text-pink-600 border-b-2 border-pink-600 px-1 pb-4 text-sm">Gestionar Envíos</span>
+            </nav>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- COLUMNA DEL FORMULARIO -->
+            <div class="lg:col-span-1 bg-white p-6 rounded-lg shadow-md h-fit">
+                <h2 id="form-title" class="font-display text-2xl font-bold text-gray-700 mb-6">Añadir Nueva Zona</h2>
+                <form id="zone-form" class="space-y-4">
+                    <input type="hidden" id="zoneId">
+                    <div>
+                        <label for="zone_name" class="block text-sm font-medium text-gray-700">Nombre de la Zona</label>
+                        <input type="text" id="zone_name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div>
+                        <label for="province" class="block text-sm font-medium text-gray-700">Provincia</label>
+                        <input type="text" id="province" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="postal_code_start" class="block text-sm font-medium">CP Desde</label>
+                            <input type="number" id="postal_code_start" class="mt-1 block w-full rounded-md">
+                        </div>
+                        <div>
+                            <label for="postal_code_end" class="block text-sm font-medium">CP Hasta</label>
+                            <input type="number" id="postal_code_end" class="mt-1 block w-full rounded-md">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="base_cost" class="block text-sm font-medium">Costo Base ($)</label>
+                            <input type="number" id="base_cost" step="0.01" required class="mt-1 block w-full rounded-md">
+                        </div>
+                        <div>
+                            <label for="estimated_days" class="block text-sm font-medium">Días Estimados</label>
+                            <input type="number" id="estimated_days" class="mt-1 block w-full rounded-md">
+                        </div>
+                    </div>
+                     <div>
+                        <label for="carrier" class="block text-sm font-medium text-gray-700">Transportista</label>
+                        <input type="text" id="carrier" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="Ej: Correo Argentino">
+                    </div>
+                    <div class="flex items-center pt-2">
+                        <input type="checkbox" id="active" class="h-4 w-4 text-pink-600 rounded">
+                        <label for="active" class="ml-2 block text-sm font-medium">Activa</label>
+                    </div>
+                    <div class="flex gap-4 pt-4 border-t">
+                        <button type="submit" class="w-full bg-pink-500 text-white font-bold py-2 px-4 rounded-full hover:bg-pink-600">Guardar</button>
+                        <button type="button" id="cancel-edit-btn" class="w-full bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-full hover:bg-gray-300">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- COLUMNA DE LISTA DE ZONAS -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                <h2 class="font-display text-2xl font-bold text-gray-700 mb-4">Zonas de Envío Actuales</h2>
+                <div class="relative mb-4">
+                     <input type="text" id="search-input" placeholder="Buscar por zona o código postal..." class="w-full border-gray-300 rounded-full pl-4 pr-10 py-2">
+                     <button id="search-btn" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-pink-600">
+                         <i data-lucide="search" class="w-5 h-5"></i>
+                     </button>
+                 </div>
+                <ul id="zone-list" class="space-y-3"></ul>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src_admin/admin-shipping-main.js"></script>
+</body>
+</html>

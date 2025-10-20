@@ -1,3 +1,5 @@
+import { createIcons, icons } from 'lucide'; // <-- AÑADIDO: Importar la función para crear íconos
+
 const modalHTML = `
   <div class="bg-white w-full max-w-sm h-full shadow-xl flex flex-col">
     <div class="p-6 flex justify-between items-center border-b">
@@ -28,9 +30,20 @@ export const updateCartModalContent = (cart, totals, callbacks) => {
   } else {
     cart.forEach(item => {
       const imageUrl = item.images && item.images[0]
-          ? `http://localhost:3000/uploads/${item.images[0]}`
-          : 'https://placehold.co/100x100';
+          ? (item.images[0].startsWith('http') ? item.images[0] : `http://localhost:3000/uploads/${item.images[0]}`)
+          : 'https://placehold.co/100x100/FFF0F5/DB2777?text=Sin+Imagen'; // Placeholder mejorado
       
+      const price = item.sale_price || item.base_price;
+      const taxes = item.taxes || 0;
+      const finalPriceWithTaxes = price * (1 + taxes / 100);
+      const itemSubtotal = finalPriceWithTaxes * item.quantity;
+      
+      const minQty = item.min_purchase_quantity || 1;
+      const maxQty = item.max_purchase_quantity;
+
+      const isMinReached = item.quantity <= minQty;
+      const isMaxReached = maxQty && item.quantity >= maxQty;
+
       const li = document.createElement('li');
       li.className = "flex items-center justify-between py-2 border-b";
       li.innerHTML = `
@@ -38,27 +51,40 @@ export const updateCartModalContent = (cart, totals, callbacks) => {
         <div class="flex-grow mx-4">
           <p class="font-bold">${item.name}</p>
           <div class="flex items-center mt-2">
-            <button class="w-6 h-6 rounded-full bg-gray-200 decrease-qty-btn" data-id="${item.id}">-</button>
+            <button class="w-6 h-6 rounded-full bg-gray-200 decrease-qty-btn" data-id="${item.id}" ${isMinReached ? 'disabled' : ''}>-</button>
             <span class="mx-3">${item.quantity}</span>
-            <button class="w-6 h-6 rounded-full bg-gray-200 increase-qty-btn" data-id="${item.id}">+</button>
+            <button class="w-6 h-6 rounded-full bg-gray-200 increase-qty-btn" data-id="${item.id}" ${isMaxReached ? 'disabled' : ''}>+</button>
           </div>
         </div>
         <div class="text-right">
-          <p class="font-bold">$${((item.sale_price || item.base_price) * item.quantity).toFixed(2)}</p>
-          <button class="text-red-500 mt-1 remove-item-btn" data-id="${item.id}"><i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i></button>
+          <p class="font-bold">$${itemSubtotal.toFixed(2)}</p>
+          <button class="text-red-500 mt-1 remove-item-btn" data-id="${item.id}" aria-label="Eliminar producto">
+            <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+          </button>
         </div>`;
       
       itemsContainer.appendChild(li);
     });
   }
+  
+  const finalSubtotal = cart.reduce((sum, item) => {
+      const price = item.sale_price || item.base_price;
+      const taxes = item.taxes || 0;
+      const finalPriceWithTaxes = price * (1 + taxes / 100);
+      return sum + (finalPriceWithTaxes * item.quantity);
+  }, 0);
 
-  subtotalEl.textContent = `$${totals.subtotal.toFixed(2)}`;
+  subtotalEl.textContent = `$${finalSubtotal.toFixed(2)}`;
   checkoutBtn.disabled = totals.totalItems === 0;
 
+  // Conexión de todos los botones
   itemsContainer.querySelectorAll('.increase-qty-btn').forEach(btn => btn.onclick = () => callbacks.increase(parseInt(btn.dataset.id)));
   itemsContainer.querySelectorAll('.decrease-qty-btn').forEach(btn => btn.onclick = () => callbacks.decrease(parseInt(btn.dataset.id)));
   itemsContainer.querySelectorAll('.remove-item-btn').forEach(btn => btn.onclick = () => callbacks.remove(parseInt(btn.dataset.id)));
-  
-  // CORRECCIÓN: La llamada a lucide se elimina de aquí.
+
+  // --- CORRECCIÓN FINAL ---
+  // Se llama a createIcons DESPUÉS de haber añadido todo el HTML al DOM.
+  // Esto asegura que todos los íconos (como el de eliminar) se dibujen correctamente.
+  createIcons({ icons });
 };
 
