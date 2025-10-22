@@ -5,20 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - Gestionar Productos</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <!-- El CSS se carga desde el archivo JS, no es necesario aquí -->
+     <link rel="stylesheet" href="/src_admin/admin-style.css"> 
 </head>
 <body class="bg-gray-100 font-body">
-
-        <div class="container mx-auto p-8">
-        <div class="flex justify-between items-center mb-4"> <!-- Contenedor Flex para título y botón -->
-            <h1 class="font-display text-4xl font-bold text-gray-800">Panel de Administración</h1>
-            <!-- NUEVO BOTÓN DE LOGOUT -->
-            <button id="logout-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-full hover:bg-red-600 flex items-center gap-2 text-sm">
-                <i data-lucide="log-out" class="w-4 h-4"></i>
-                <span>Cerrar Sesión</span>
-            </button>
-        </div>
 
         <!-- Pestañas de Navegación -->
         <div class="mb-8 border-b border-gray-200">
@@ -28,7 +18,14 @@
     
 
     <div class="container mx-auto p-8">
-        <h1 class="font-display text-4xl font-bold text-gray-800 mb-4">Panel de Administración</h1>
+        <div class="flex justify-between items-center mb-4"> <!-- Contenedor Flex para título y botón -->
+            <h1 class="font-display text-4xl font-bold text-gray-800">Administración</h1>
+            <!-- NUEVO BOTÓN DE LOGOUT -->
+            <button id="logout-btn" class="bg-red-500 text-white font-bold py-2 px-4 rounded-full hover:bg-red-600 flex items-center gap-2 text-sm">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+                <span>Cerrar Sesión</span>
+            </button>
+        </div>
 
         <!-- Pestañas de Navegación -->
         <div class="mb-8 border-b border-gray-200">
