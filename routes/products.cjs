@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/database.cjs');
 const { protectAdminRoute } = require('../middleware/auth.cjs');
+const { body, validationResult } = require('express-validator'); // 
 
 /**
  * Helper para calcular precios dinámicamente.
@@ -53,36 +54,83 @@ router.get("/", (req, res) => {
     });
 });
 
-// POST /api/products - Crear un nuevo producto (sin campos calculados)
-router.post("/", protectAdminRoute, (req, res) => {
-    // MODIFICADO: Se quitan discount_percentage y final_price
-    const {
-        name, short_description, long_description, images, video_url, category, status, enabled, stock, base_price, sale_price,
-        cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
-        dimensions, customizable, has_production_time, production_time_hours, restock_time, featured
-    } = req.body;
+// --- NUEVO: Reglas de validación para la creación de productos ---
+// --- ASEGÚRATE DE QUE ESTE BLOQUE ESTÉ ANTES DE router.post ---
+const productValidationRules = [
+    body('name').trim().notEmpty().withMessage('El nombre del producto es obligatorio.'),
+    body('base_price').isFloat({ gt: 0 }).withMessage('El precio base debe ser un número positivo.'),
+    body('stock').isInt({ min: 0 }).withMessage('El stock debe ser un número entero igual o mayor a 0.'),
+    body('enabled').isBoolean().withMessage('El estado "enabled" debe ser verdadero o falso.'),
+    // Añade más reglas según necesites para otros campos (ej. sale_price opcional pero numérico si existe)
+    body('sale_price').optional({ nullable: true }).isFloat({ gt: 0 }).withMessage('El precio de oferta debe ser un número positivo.'),
+    body('taxes').optional({ defaults: 21 }).isFloat({ min: 0 }).withMessage('Los impuestos deben ser un número positivo.'),
+    body('category').optional().isArray().withMessage('La categoría debe ser un array (puede estar vacío).'),
+    body('images').optional().isArray().withMessage('Las imágenes deben ser un array (puede estar vacío).')
+];
+// --- FIN NUEVO ---
 
-    if (typeof name !== 'string' || name.trim() === '') {
-        return res.status(400).json({ error: "El nombre del producto es inválido." });
-    }
+router.post("/",
+        protectAdminRoute,
+        productValidationRules, // <-- AÑADIR LAS REGLAS AQUÍ
+        (req, res) => {
+            // --- NUEVO: Verificar errores de validación ---
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                // Si hay errores, devuelve un 400 con los mensajes
+                return res.status(400).json({ errors: errors.array() });
+            }
+            // --- FIN NUEVO ---
 
-    const sql = `INSERT INTO products (
-        name, short_description, long_description, images, video_url, category, status, enabled, stock, base_price, sale_price,
-        cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
-        dimensions, customizable, has_production_time, production_time_hours, restock_time, featured
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
-    
-    const params = [
-        name, short_description, long_description, JSON.stringify(images || []), video_url, JSON.stringify(category || []), status, enabled ? 1 : 0, stock, base_price, sale_price,
-        cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
-        dimensions, customizable ? 1 : 0, has_production_time ? 1 : 0, production_time_hours, restock_time, featured ? 1 : 0
-    ];
-    
-    db.run(sql, params, function(err) {
-        if (err) return res.status(500).json({"error": err.message});
-        res.status(201).json({ "message": "Producto creado con éxito", "data": { id: this.lastID, ...req.body } });
+            // MODIFICADO: Se quitan discount_percentage y final_price
+            // Extraer los datos validados y sanitizados (express-validator puede hacer sanitización también)
+            const { // <-- Usar los datos de req.body aquí sigue estando bien por ahora
+                name, short_description, long_description, images, video_url, category, status, enabled, stock, base_price, sale_price,
+                cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
+                dimensions, customizable, has_production_time, production_time_hours, restock_time, featured
+            } = req.body;
+
+            // --- CORRECCIÓN: Parseo JSON más seguro ---
+            let parsedImages = [];
+            let parsedCategories = [];
+            try {
+                // Asegurarse de que images y category son arrays antes de intentar parsear
+                // Si ya vienen como arrays (porque express.json los parseó bien), usarlos directamente.
+                // Si vienen como string JSON (menos probable con express.json, pero por seguridad), intentar parsearlos.
+                parsedImages = Array.isArray(images) ? images : (images ? JSON.parse(images) : []);
+                parsedCategories = Array.isArray(category) ? category : (category ? JSON.parse(category) : []);
+                // Validar que realmente sean arrays después del parseo
+                if (!Array.isArray(parsedImages)) throw new Error('Images no es un array válido.');
+                if (!Array.isArray(parsedCategories)) throw new Error('Category no es un array válido.');
+            } catch (parseError) {
+                console.error("Error al parsear JSON:", parseError);
+                return res.status(400).json({ errors: [{ msg: `Formato inválido para images o category: ${parseError.message}` }] });
+            }
+            // --- FIN CORRECCIÓN ---
+
+
+            // La validación básica del nombre que tenías ya no es necesaria aquí, la hace express-validator
+            // if (typeof name !== 'string' || name.trim() === '') {
+            //    return res.status(400).json({ error: "El nombre del producto es inválido." });
+            // }
+
+            const sql = `INSERT INTO products (
+                name, short_description, long_description, images, video_url, category, status, enabled, stock, base_price, sale_price,
+                cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
+                dimensions, customizable, has_production_time, production_time_hours, restock_time, featured
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+
+            const params = [
+                name, short_description, long_description, JSON.stringify(parsedImages), video_url, JSON.stringify(parsedCategories), status, enabled ? 1 : 0, stock, base_price, sale_price,
+                cost_price, currency, taxes, min_purchase_quantity, max_purchase_quantity, weight,
+                dimensions, customizable ? 1 : 0, has_production_time ? 1 : 0, production_time_hours, restock_time, featured ? 1 : 0
+            ];
+
+            db.run(sql, params, function(err) {
+                if (err) return res.status(500).json({"error": err.message});
+                // Devolver el ID y los datos enviados (ya validados)
+                res.status(201).json({ "message": "Producto creado con éxito", "data": { id: this.lastID, ...req.body } });
+            });
     });
-});
 
 // PUT /api/products/:id - Actualizar un producto (sin campos calculados)
 router.put("/:id", protectAdminRoute, (req, res) => {
@@ -143,5 +191,6 @@ router.patch("/:id/stock", protectAdminRoute, (req, res) => {
     });
 });
 
-module.exports = router;
+module.exports = router; // <-- Asegúrate que esto esté al final
+
 
