@@ -15,6 +15,10 @@ export const createProductListItem = (product, apiBaseUrl) => {
     const imageUrl = product.images && product.images[0]
         ? (product.images[0].startsWith('http') ? product.images[0] : `${apiBaseUrl}/uploads/${product.images[0]}`)
         : 'https://placehold.co/100x100';
+    
+    // INICIO MODIFICACIÓN ALT TEXT
+    const imageAlt = product.name ? `Imagen de ${product.name}` : 'Imagen de producto';
+    // FIN MODIFICACIÓN ALT TEXT
 
     li.innerHTML = `
         <div class="flex items-center justify-between">

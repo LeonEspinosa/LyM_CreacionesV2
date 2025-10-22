@@ -26,8 +26,9 @@ export const createProductCard = (product, onProductClick, onAddToCartClick) => 
 
     const img = document.createElement('img');
     img.src = imageUrl;
-    // --- MEJORADO: alt descriptivo ---
-    img.alt = `Imagen de ${product.name}`; // Texto alternativo más específico
+    // INICIO MODIFICACIÓN ALT TEXT
+    img.alt = product.name || 'Imagen de producto'; // Asegura que siempre haya un alt, usando el nombre del producto
+    // FIN MODIFICACIÓN ALT TEXT
     img.loading = "lazy";
     img.className = "w-full h-56 object-cover";
     productImageLink.appendChild(img);

@@ -8,14 +8,16 @@
 <body class="bg-pink-50 font-body">
     <header id="main-header" class="bg-white/80 backdrop-blur-md shadow-md sticky top-0 z-40"></header>
     
-    <main id="app">
+    <main id="app" class="flex-grow">
         <!-- El contenido dinámico de la página se renderizará aquí -->
     </main>
     
     <footer id="main-footer" class="bg-gray-800 text-white py-8"></footer>
     
-    <!-- Contenedor para el Modal del Carrito -->
-    <div id="cart-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-end"></div>
+    <!-- Contenedor para el Modal del Carrito (Fuera de main) -->
+    <div id="cart-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex justify-end" role="dialog" aria-modal="true" aria-labelledby="cart-modal-title">
+        <!-- El contenido del modal se renderiza vía JS, añadiremos aria-labelledby después -->
+    </div>
     
     <!-- Contenedor para el Lightbox -->
     <div id="lightbox-container"></div>

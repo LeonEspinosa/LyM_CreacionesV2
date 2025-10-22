@@ -7,51 +7,54 @@ const filterState = {
     selectedCategories: [],
     minPrice: '',
     maxPrice: '',
-    sortBy: 'default', // Opciones: 'default', 'price-asc', 'price-desc', 'offer-desc'
+    sortBy: 'default', 
 };
 
+// INICIO MODIFICACIÓN SEMÁNTICA
 const shopHTML = `
-  <section id="shop" class="page active">
+  <section id="shop" class="page active" aria-labelledby="shop-title"> <!-- section como contenedor principal de la página -->
     <div class="container mx-auto px-6 py-12">
-      <h2 class="font-display text-4xl text-center font-bold text-gray-800 mb-12">Nuestra Tienda</h2>
+      <h2 id="shop-title" class="font-display text-4xl text-center font-bold text-gray-800 mb-12">Nuestra Tienda</h2>
       
       <div class="flex flex-col lg:flex-row gap-8">
         
         <!-- Barra Lateral de Filtros -->
-        <aside class="w-full lg:w-1/4 xl:w-1/5 space-y-8">
+        <aside class="w-full lg:w-1/4 xl:w-1/5 space-y-8" aria-labelledby="filters-title"> <!-- aside para contenido complementario -->
+            <h3 id="filters-title" class="sr-only">Filtros de productos</h3> <!-- Título oculto para lectores de pantalla -->
             <!-- Buscador -->
-            <div id="search-filter">
-                <h3 class="font-bold text-lg mb-4 border-b pb-2">Buscar</h3>
+            <div id="search-filter" role="search"> <!-- role="search" para el buscador -->
+                <label for="search-input" class="font-bold text-lg mb-4 border-b pb-2 block">Buscar</label> <!-- Cambiado h3 por label -->
                 <div class="relative">
                     <input type="text" id="search-input" placeholder="Nombre o categoría..." class="w-full border-gray-300 rounded-full pl-4 pr-10 py-2 focus:ring-pink-500 focus:border-pink-500">
-                    <button id="search-btn" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-pink-600">
+                    <button id="search-btn" class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-500 hover:text-pink-600" aria-label="Buscar productos"> <!-- aria-label -->
                         <i data-lucide="search" class="w-5 h-5"></i>
                     </button>
                 </div>
             </div>
 
             <!-- Filtro de Categorías -->
-            <div id="category-filter">
-                <h3 class="font-bold text-lg mb-4 border-b pb-2">Categorías</h3>
+            <fieldset id="category-filter"> <!-- fieldset para agrupar filtros -->
+                <legend class="font-bold text-lg mb-4 border-b pb-2 w-full">Categorías</legend> <!-- legend para el título del grupo -->
                 <div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    <!-- Las categorías se generarán aquí -->
                     <p class="text-sm text-gray-500">Cargando...</p>
                 </div>
-            </div>
+            </fieldset>
 
             <!-- Filtro de Precios -->
-            <div id="price-filter">
-                <h3 class="font-bold text-lg mb-4 border-b pb-2">Precio</h3>
+            <fieldset id="price-filter"> <!-- fieldset -->
+                <legend class="font-bold text-lg mb-4 border-b pb-2 w-full">Precio</legend> <!-- legend -->
                 <div class="flex items-center gap-2">
-                    <input type="number" id="min-price" placeholder="Min" class="w-full border-gray-300 rounded-md text-sm p-2">
+                    <label for="min-price" class="sr-only">Precio mínimo</label> <!-- sr-only label -->
+                    <input type="number" id="min-price" placeholder="Min $" class="w-full border-gray-300 rounded-md text-sm p-2" aria-label="Precio mínimo">
                     <span>-</span>
-                    <input type="number" id="max-price" placeholder="Max" class="w-full border-gray-300 rounded-md text-sm p-2">
+                    <label for="max-price" class="sr-only">Precio máximo</label> <!-- sr-only label -->
+                    <input type="number" id="max-price" placeholder="Max $" class="w-full border-gray-300 rounded-md text-sm p-2" aria-label="Precio máximo">
                 </div>
-            </div>
+            </fieldset>
             
             <!-- Ordenamiento -->
             <div id="sort-options">
-                <h3 class="font-bold text-lg mb-4 border-b pb-2">Ordenar por</h3>
+                <label for="sort-by-select" class="font-bold text-lg mb-4 border-b pb-2 block">Ordenar por</label> <!-- Cambiado h3 por label -->
                 <select id="sort-by-select" class="w-full border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500">
                     <option value="default">Relevancia</option>
                     <option value="price-asc">Precio: Menor a Mayor</option>
@@ -62,25 +65,23 @@ const shopHTML = `
         </aside>
 
         <!-- Contenedor de Productos -->
-        <main class="w-full lg:w-3/4 xl:w-4/5">
-            <div id="products-header" class="mb-4">
+        <div class="w-full lg:w-3/4 xl:w-4/5"> <!-- div en lugar de main, ya que main está en index.html -->
+            <div id="products-header" class="mb-4" aria-live="polite"> <!-- aria-live para anunciar cambios en el contador -->
                 <p id="product-count" class="text-sm text-gray-600">Cargando productos...</p>
             </div>
             <ul id="all-products" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
                 <!-- Los productos filtrados se renderizarán aquí -->
             </ul>
-        </main>
+        </div>
 
       </div>
     </div>
   </section>
 `;
+// FIN MODIFICACIÓN SEMÁNTICA
 
-/**
- * Aplica todos los filtros y el ordenamiento a la lista de productos.
- * @param {Array} allProducts - La lista completa de productos.
- * @returns {Array} La lista de productos filtrada y ordenada.
- */
+// --- Las funciones applyFiltersAndSorting, renderFilteredProducts, renderCategoryFilters no cambian su lógica interna ---
+// (Solo se ajustan las referencias a los elementos si cambiaron de etiqueta, pero en este caso usamos IDs que se mantienen)
 function applyFiltersAndSorting(allProducts) {
     let filtered = [...allProducts];
 
@@ -100,43 +101,41 @@ function applyFiltersAndSorting(allProducts) {
         );
     }
 
-    // 3. Filtrar por rango de precios
+    // 3. Filtrar por rango de precios (Usando final_price calculado en el backend)
     const minPrice = parseFloat(filterState.minPrice);
     const maxPrice = parseFloat(filterState.maxPrice);
-    if (!isNaN(minPrice)) {
-        filtered = filtered.filter(p => (p.sale_price || p.base_price) >= minPrice);
+     if (!isNaN(minPrice)) {
+        filtered = filtered.filter(p => p.final_price >= minPrice);
     }
     if (!isNaN(maxPrice)) {
-        filtered = filtered.filter(p => (p.sale_price || p.base_price) <= maxPrice);
+        filtered = filtered.filter(p => p.final_price <= maxPrice);
     }
 
-    // 4. Ordenar
+
+    // 4. Ordenar (Usando final_price calculado en el backend)
     switch (filterState.sortBy) {
         case 'price-asc':
-            filtered.sort((a, b) => (a.sale_price || a.base_price) - (b.sale_price || b.base_price));
+            filtered.sort((a, b) => a.final_price - b.final_price);
             break;
         case 'price-desc':
-            filtered.sort((a, b) => (b.sale_price || b.base_price) - (a.sale_price || a.base_price));
+            filtered.sort((a, b) => b.final_price - a.final_price);
             break;
         case 'offer-desc':
-            filtered = filtered.filter(p => p.sale_price && p.sale_price < p.base_price);
-            filtered.sort((a, b) => {
-                const discountA = (a.base_price - a.sale_price) / a.base_price;
-                const discountB = (b.base_price - b.sale_price) / b.base_price;
-                return discountB - discountA;
-            });
+            // Filtrar productos con descuento real
+             filtered = filtered.filter(p => p.discount_percentage && p.discount_percentage > 0);
+            // Ordenar por el porcentaje de descuento descendente
+             filtered.sort((a, b) => (b.discount_percentage || 0) - (a.discount_percentage || 0));
             break;
         default:
-            // Sin orden específico (o podrías ordenar por ID, etc.)
+            // Orden por defecto (ID descendente como en la API)
+             filtered.sort((a, b) => b.id - a.id);
             break;
     }
+
 
     return filtered;
 }
 
-/**
- * Renderiza la lista de productos en la UI.
- */
 function renderFilteredProducts(products, onProductClick, onAddToCartClick) {
     const allProductsContainer = document.getElementById('all-products');
     const productCountEl = document.getElementById('product-count');
@@ -146,26 +145,27 @@ function renderFilteredProducts(products, onProductClick, onAddToCartClick) {
         allProductsContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">No se encontraron productos con estos filtros.</p>';
         productCountEl.textContent = '0 productos encontrados.';
     } else {
-        productCountEl.textContent = `${products.length} producto(s) encontrado(s).`;
+        productCountEl.textContent = `${products.length} producto${products.length > 1 ? 's' : ''} encontrado${products.length > 1 ? 's' : ''}.`;
         products.forEach(product => {
             const card = createProductCard(product, onProductClick, onAddToCartClick);
             allProductsContainer.appendChild(card);
         });
     }
-    createIcons({ icons });
+    createIcons({ icons }); // Asegúrate que esto se llama después de añadir elementos con data-lucide
 }
 
-/**
- * Extrae y renderiza los filtros de categoría.
- */
+
 function renderCategoryFilters(products, onFilterChange) {
     const categoryListContainer = document.getElementById('category-list');
     const allCategories = new Set();
     products.forEach(p => {
         if (p.category) {
-            p.category.forEach(cat => allCategories.add(cat));
+            // Asegurarse de que category es un array antes de iterar
+            const categories = Array.isArray(p.category) ? p.category : JSON.parse(p.category || '[]');
+            categories.forEach(cat => allCategories.add(cat.trim()));
         }
     });
+
 
     if (allCategories.size === 0) {
         categoryListContainer.innerHTML = '<p class="text-sm text-gray-500">No hay categorías.</p>';
@@ -174,16 +174,21 @@ function renderCategoryFilters(products, onFilterChange) {
     
     categoryListContainer.innerHTML = '';
     [...allCategories].sort().forEach(category => {
+        // Asegurarse de que la categoría no esté vacía
+        if (!category) return;
+        
+        const categoryId = `cat-${category.toLowerCase().replace(/\s+/g, '-')}`; // Crear un ID más robusto
         const div = document.createElement('div');
         div.className = 'flex items-center';
         div.innerHTML = `
-            <input type="checkbox" id="cat-${category}" name="category" value="${category}" class="h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500 cursor-pointer">
-            <label for="cat-${category}" class="ml-3 text-sm text-gray-600 cursor-pointer">${category}</label>
+            <input type="checkbox" id="${categoryId}" name="category" value="${category}" class="h-4 w-4 text-pink-600 rounded border-gray-300 focus:ring-pink-500 cursor-pointer">
+            <label for="${categoryId}" class="ml-3 text-sm text-gray-600 cursor-pointer">${category}</label>
         `;
         div.querySelector('input').addEventListener('change', onFilterChange);
         categoryListContainer.appendChild(div);
     });
 }
+
 
 
 export const renderShopPage = (appContainer, allProducts, onProductClick, onAddToCartClick) => {
@@ -208,11 +213,10 @@ export const renderShopPage = (appContainer, allProducts, onProductClick, onAddT
 
     // Conectar eventos
     document.getElementById('search-btn').addEventListener('click', onFilterChange);
-    document.getElementById('search-input').addEventListener('keyup', (e) => {
-        if (e.key === 'Enter') onFilterChange();
-    });
+    document.getElementById('search-input').addEventListener('input', onFilterChange); // Filtrar mientras escribe
     document.getElementById('min-price').addEventListener('input', onFilterChange);
     document.getElementById('max-price').addEventListener('input', onFilterChange);
     document.getElementById('sort-by-select').addEventListener('change', onFilterChange);
+    
+    createIcons({ icons }); // Para íconos estáticos como el de búsqueda
 };
-

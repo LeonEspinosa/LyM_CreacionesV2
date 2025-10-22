@@ -18,6 +18,87 @@ import { renderThanksPage } from './pages/thanks.js';
 // Importación de Lógica de Negocio
 import * as Cart from './js/cart.js';
 
+// --- INICIO: Variables y funciones para gestión de foco del CARRITO ---
+let cartModalContainer = null;
+let cartModalElement = null; // El div interno con role="dialog"
+let cartCloseButton = null;
+let cartFocusableElements = [];
+let cartFirstFocusable = null;
+let cartLastFocusable = null;
+let cartPreviouslyFocused = null;
+
+const openCartModal = () => {
+  if (!cartModalContainer || !cartModalElement) return;
+  cartPreviouslyFocused = document.activeElement; // Guardar foco
+  cartModalContainer.classList.remove('hidden');
+  
+  // Encontrar elementos enfocables DENTRO del modal del carrito
+  cartFocusableElements = Array.from(cartModalElement.querySelectorAll(
+    'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  ));
+  // El botón de cerrar es usualmente el primero o uno de los primeros
+  cartCloseButton = document.getElementById('close-cart-btn'); 
+  cartFirstFocusable = cartCloseButton || cartFocusableElements[0]; // Priorizar botón cerrar
+  cartLastFocusable = cartFocusableElements[cartFocusableElements.length - 1];
+  
+  // Añadir listener para atrapar el foco
+  cartModalContainer.addEventListener('keydown', trapCartFocus);
+
+  // Mover foco al modal (o a su botón de cerrar)
+  setTimeout(() => { 
+      if(cartCloseButton) {
+          cartCloseButton.focus();
+      } else if (cartModalElement) {
+           cartModalElement.focus(); // Enfocar el contenedor si no hay botón
+      }
+  }, 100); 
+};
+
+const closeCartModal = () => {
+  if (!cartModalContainer) return;
+  cartModalContainer.classList.add('hidden');
+  cartModalContainer.removeEventListener('keydown', trapCartFocus); // Quitar listener
+  
+  // Devolver foco al elemento que lo tenía antes
+  if (cartPreviouslyFocused) {
+      cartPreviouslyFocused.focus();
+  }
+};
+
+// Función para atrapar el foco dentro del modal del carrito
+const trapCartFocus = (e) => {
+    if (e.key !== 'Tab') {
+       if(e.key === 'Escape') { // Añadir cierre con Escape
+           closeCartModal();
+       }
+       return; 
+    }
+
+    // Si no hay elementos enfocables (carrito vacío?), no hacer nada
+    if(cartFocusableElements.length === 0) {
+        e.preventDefault();
+        return;
+    }
+
+    // Asegurarse de tener referencias válidas
+    cartFirstFocusable = cartFocusableElements[0];
+    cartLastFocusable = cartFocusableElements[cartFocusableElements.length - 1];
+
+
+    if (e.shiftKey) { // Shift + Tab
+        if (document.activeElement === cartFirstFocusable) {
+            cartLastFocusable.focus(); 
+            e.preventDefault();
+        }
+    } else { // Tab
+        if (document.activeElement === cartLastFocusable) {
+            cartFirstFocusable.focus(); 
+            e.preventDefault();
+        }
+    }
+};
+// --- FIN: Variables y funciones para gestión de foco del CARRITO ---
+
 const app = {
   state: {
     products: [],
@@ -40,24 +121,41 @@ const app = {
   renderLayout() {
     const headerContainer = document.getElementById('main-header');
     const footerContainer = document.getElementById('main-footer');
-    const cartModalContainer = document.getElementById('cart-modal');
+    // --- MODIFICACIÓN: Guardar referencia al contenedor y al modal interno ---
+    cartModalContainer = document.getElementById('cart-modal'); 
+    // --- FIN MODIFICACIÓN ---
     const lightboxContainer = document.getElementById('lightbox-container');
 
     renderHeader(headerContainer, (page) => this.navigateTo(page), () => this.toggleCartModal(true));
     renderFooter(footerContainer);
     renderCartModal(cartModalContainer);
-    Lightbox.renderLightbox(lightboxContainer);
+    // --- MODIFICACIÓN: Obtener referencia al modal interno y conectar botón cerrar ---
+    if (cartModalContainer) {
+        cartModalElement = cartModalContainer.querySelector('[role="dialog"]'); // Busca el div con role dialog
+        cartCloseButton = document.getElementById('close-cart-btn'); // Busca el botón por ID
+        if(cartCloseButton) {
+           cartCloseButton.addEventListener('click', () => this.toggleCartModal(false));
+        }
+        // Cerrar al hacer clic fuera (en el overlay)
+        cartModalContainer.addEventListener('click', (e) => {
+          if (e.target === cartModalContainer) this.toggleCartModal(false);
+        });
+    }
+    // --- FIN MODIFICACIÓN ---
 
-    document.getElementById('close-cart-btn').addEventListener('click', () => this.toggleCartModal(false));
-    cartModalContainer.addEventListener('click', (e) => {
-        if (e.target.id === 'cart-modal') this.toggleCartModal(false);
-    });
-    document.getElementById('checkout-modal-btn').addEventListener('click', () => {
-        this.toggleCartModal(false);
-        this.navigateTo('checkout');
-    });
+    Lightbox.renderLightbox(lightboxContainer); // Renderizar Lightbox
 
-    createIcons({ icons });
+    // El listener del botón checkout se mantiene, pero ahora está dentro del dialog
+    const checkoutBtn = document.getElementById('checkout-modal-btn');
+     if (checkoutBtn) {
+         checkoutBtn.addEventListener('click', () => {
+             this.toggleCartModal(false);
+             this.navigateTo('checkout');
+         });
+     }
+
+
+    createIcons({ icons }); // Renderizar iconos iniciales
   },
 
   async fetchProducts() {
@@ -72,6 +170,11 @@ const app = {
   },
 
   navigateTo(page) {
+    // Si la nueva página es diferente, limpiar el contenedor principal
+    if (page !== this.state.currentPage) {
+        const appContainer = document.getElementById('app');
+        if(appContainer) appContainer.innerHTML = ''; // Limpiar contenido anterior
+    }
     this.state.currentPage = page;
     window.scrollTo(0, 0);
     const appContainer = document.getElementById('app');
@@ -175,11 +278,16 @@ const app = {
     }
   },
 
-  toggleCartModal(show) {
-    document.getElementById('cart-modal').classList.toggle('hidden', !show);
-    if (show) this.updateCartUI();
-  },
-
+  // --- MODIFICACIÓN: Usar nuevas funciones para abrir/cerrar modal ---
+  toggleCartModal(show) {
+    if (show) {
+      this.updateCartUI(); // Actualizar contenido ANTES de mostrar
+      openCartModal();
+    } else {
+      closeCartModal();
+    }
+  },
+  // --- FIN MODIFICACIÓN ---
   // --- INICIO: SECCIÓN DE CHECKOUT ACTUALIZADA ---
   async calculateShipping() {
     const zipInput = document.getElementById('zip');
