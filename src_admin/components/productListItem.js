@@ -19,7 +19,8 @@ export const createProductListItem = (product, apiBaseUrl) => {
     li.innerHTML = `
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4 min-w-0">
-                <img src="${imageUrl}" alt="${product.name}" class="w-16 h-16 object-cover rounded-md flex-shrink-0">
+                <!-- Línea ~18: Modificar el atributo alt -->
+                <img src="${imageUrl}" alt="Miniatura de ${product.name}" class="w-16 h-16 object-cover rounded-md flex-shrink-0">
                 <div class="min-w-0">
                     <p class="font-bold text-gray-800 truncate">${product.name}</p>
                     <p class="text-sm text-gray-600 font-bold text-pink-600">$${(product.final_price || 0).toFixed(2)}</p>
@@ -30,16 +31,19 @@ export const createProductListItem = (product, apiBaseUrl) => {
                 </div>
             </div>
             <div class="flex gap-2 flex-shrink-0">
-                <button aria-label="Editar" class="p-2 text-blue-600 hover:bg-blue-100 rounded-full edit-btn"><i data-lucide="pencil" class="pointer-events-none"></i></button>
-                <button aria-label="Eliminar" class="p-2 text-red-600 hover:bg-red-100 rounded-full delete-btn"><i data-lucide="trash-2" class="pointer-events-none"></i></button>
+                <!-- Línea ~31: Modificar el botón de editar -->
+                <button aria-label="Editar ${product.name}" class="p-2 text-blue-600 hover:bg-blue-100 rounded-full edit-btn"><i data-lucide="pencil" class="pointer-events-none"></i></button>
+                <!-- Línea ~33: Modificar el botón de eliminar -->
+                <button aria-label="Eliminar ${product.name}" class="p-2 text-red-600 hover:bg-red-100 rounded-full delete-btn"><i data-lucide="trash-2" class="pointer-events-none"></i></button>
             </div>
         </div>
-        <!-- CORRECCIÓN Y VERIFICACIÓN DE LA SECCIÓN DE STOCK -->
+        <!-- Sección de Stock -->
         <div class="mt-3 pt-3 border-t flex items-center gap-2">
-            <input type="number" class="w-24 p-1 border border-gray-300 rounded-md text-sm stock-change-input" placeholder="Ej: 10 o -5" aria-label="Cantidad a agregar o quitar">
+             <!-- Línea ~39: Modificar el input de stock -->
+            <input type="number" class="w-24 p-1 border border-gray-300 rounded-md text-sm stock-change-input" placeholder="Ej: 10 o -5" aria-label="Cantidad a agregar o quitar al stock de ${product.name}">
             <button class="px-3 py-1 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-semibold update-stock-btn">Actualizar</button>
         </div>`;
-        
+
     return li;
 };
 
