@@ -1,4 +1,5 @@
 const sqlite3 = require('sqlite3').verbose();
+const bcrypt = require('bcryptjs');
 const DB_SOURCE = "tienda.db";
 
 const setupDatabase = () => {
@@ -20,6 +21,7 @@ const runSetup = (db) => {
         db.run('DROP TABLE IF EXISTS orders');
         db.run('DROP TABLE IF EXISTS products');
         db.run('DROP TABLE IF EXISTS shipping_zones'); // Limpiar la nueva tabla también
+        db.run('DROP TABLE IF EXISTS users');
 
         console.log("Creando nueva estructura de tablas...");
         
@@ -104,7 +106,25 @@ const runSetup = (db) => {
             active INTEGER DEFAULT 1
         )`);
 
+        // --- NUEVA TABLA DE USUARIOS ---
+        db.run(`CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password_hash TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'admin'
+        )`);
+
         console.log("Estructura de tablas creada con éxito.");
+
+        // --- NUEVO: Insertar usuario administrador de ejemplo ---
+        const salt = bcrypt.genSaltSync(10);
+        // Contraseña por defecto: "admin123". ¡Cámbiala en producción!
+        const adminPasswordHash = bcrypt.hashSync("admin123", salt);
+        
+        db.run(`INSERT INTO users (username, password_hash) VALUES (?, ?)`, ['admin', adminPasswordHash], (err) => {
+            if (err) return console.error("Error al insertar usuario admin:", err.message);
+            console.log("Usuario 'admin' con contraseña 'admin123' creado con éxito.");
+        });
 
         // --- Insertar productos de ejemplo (sin cambios) ---
         const products = [

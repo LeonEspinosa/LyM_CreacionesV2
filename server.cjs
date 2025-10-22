@@ -3,9 +3,12 @@ const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 
+require('dotenv').config();
+
 const productRoutes = require('./routes/products.cjs');
 const orderRoutes = require('./routes/orders.cjs');
 const shippingRoutes = require('./routes/shipping.cjs'); // <--- NUEVA LÍNEA
+const authRoutes = require('./routes/auth.cjs');
 const { protectAdminRoute } = require('./middleware/auth.cjs');
 
 const app = express();
@@ -25,6 +28,7 @@ const upload = multer({ storage: storage });
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/shipping', shippingRoutes); // <--- NUEVA LÍNEA
+app.use('/api/auth', authRoutes);
 
 app.post('/api/upload', protectAdminRoute, upload.array('images', 5), (req, res) => {
     if (!req.files || req.files.length === 0) {
@@ -40,3 +44,5 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(port, () => console.log(`Servidor escuchando en http://localhost:${port}`));
+
+// Nueva modificacion para que funcione

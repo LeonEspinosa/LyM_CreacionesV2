@@ -1,10 +1,19 @@
 import { createIcons, icons } from 'lucide';
 import { showNotification } from './components/notification.js';
 import { createOrderListItem } from './components/orderListItem.js';
+import { API_BASE_URL, AUTH_TOKEN_KEY } from '../src/config.js'; // <-- Importar config
+
+// --- INICIO: VERIFICACIÓN DE AUTENTICACIÓN ---
+const token = localStorage.getItem(AUTH_TOKEN_KEY);
+if (!token) {
+    window.location.href = '/admin-login.html';
+    throw new Error("No autenticado. Redirigiendo al login."); 
+}
+// --- FIN: VERIFICACIÓN DE AUTENTICACIÓN ---
 
 const ordersApp = {
-    apiBaseUrl: 'http://localhost:3000/api/orders',
-    adminSecret: 'tu-clave-secreta-aqui',
+    apiBaseUrl: `${API_BASE_URL}/api/orders`, // <-- Usar constante
+    //adminSecret: 'tu-clave-secreta-aqui',
     allOrders: [],
     viewState: {
         searchTerm: '',
@@ -14,6 +23,13 @@ const ordersApp = {
             payment_status: 'all',
             shipping_status: 'all',
         },
+    },
+
+    getAuthHeaders() {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        return {
+            'Authorization': `Bearer ${token}`,
+        };
     },
 
     init() {
@@ -46,8 +62,16 @@ const ordersApp = {
 
     async loadOrders() {
         try {
-            const response = await fetch(this.apiBaseUrl, { headers: { 'x-admin-secret': this.adminSecret } });
-            if (!response.ok) throw new Error('No se pudieron cargar los pedidos.');
+            // --- MODIFICADO: Añadir cabecera ---
+            const response = await fetch(this.apiBaseUrl, { headers: this.getAuthHeaders() });
+            // --- FIN MODIFICACIÓN ---
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error('No se pudieron cargar los pedidos.');
+            }
             this.allOrders = await response.json();
             this.renderOrderList();
         } catch (error) {
@@ -185,13 +209,24 @@ const ordersApp = {
         };
 
         try {
+            // --- MODIFICADO: Añadir cabeceras ---
             const response = await fetch(`${this.apiBaseUrl}/${orderId}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'x-admin-secret': this.adminSecret },
+                headers: { 
+                    ...this.getAuthHeaders(), 
+                    'Content-Type': 'application/json' 
+                },
                 body: JSON.stringify(formData)
             });
+            // --- FIN MODIFICACIÓN ---
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Error al guardar.');
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error || 'Error al guardar.');
+            }
             
             showNotification(result.message, 'success');
             await this.loadOrders();
@@ -203,13 +238,24 @@ const ordersApp = {
 
     async updateOrderStatus(id, status) {
         try {
+            // --- MODIFICADO: Añadir cabeceras ---
             const response = await fetch(`${this.apiBaseUrl}/${id}/status`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'x-admin-secret': this.adminSecret },
+                headers: { 
+                    ...this.getAuthHeaders(), 
+                    'Content-Type': 'application/json' 
+                },
                 body: JSON.stringify({ order_status: status })
             });
+            // --- FIN MODIFICACIÓN ---
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error);
+            }
             showNotification(result.message, 'success');
             await this.loadOrders();
         } catch (error) {
@@ -220,12 +266,20 @@ const ordersApp = {
     async deleteOrder(id) {
         if (!confirm(`¿Estás seguro de que quieres eliminar el pedido #${id}? Esta acción no se puede deshacer.`)) return;
         try {
+            // --- MODIFICADO: Añadir cabecera ---
             const response = await fetch(`${this.apiBaseUrl}/${id}`, {
                 method: 'DELETE',
-                headers: { 'x-admin-secret': this.adminSecret }
+                headers: this.getAuthHeaders()
             });
+            // --- FIN MODIFICACIÓN ---
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error);
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error);
+            }
             showNotification(result.message, 'success');
             await this.loadOrders();
         } catch (error) {
@@ -234,5 +288,12 @@ const ordersApp = {
     },
 };
 
-ordersApp.init();
+// --- MODIFICADO: Inicializar en DOMContentLoaded ---
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        ordersApp.init();
+    } catch (error) {
+        console.warn("Inicialización detenida debido a redirección por autenticación.");
+    }
+});
 

@@ -10,6 +10,8 @@ export default defineConfig({
         main: resolve(__dirname, 'index.html'), // Tu frontend de la tienda
         admin: resolve(__dirname, 'admin.html'), // Tu panel de gestión de productos
         adminOrders: resolve(__dirname, 'admin-orders.html'), // Tu panel de gestión de pedidos
+        adminShipping: resolve(__dirname, 'admin-shipping.html'), // <-- AÑADIDO (si no estaba ya)
+        adminLogin: resolve(__dirname, 'admin-login.html'), // <-- NUEVA LÍNEA: Añadir la página de login
       },
       output: {
         // Para que los assets (CSS/JS) generados por cada HTML vayan a sus propias carpetas

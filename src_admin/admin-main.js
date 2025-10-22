@@ -2,9 +2,20 @@ import { createIcons, icons } from 'lucide';
 import { showNotification } from './components/notification.js';
 import { createProductListItem } from './components/productListItem.js';
 import './admin-style.css';
+import { API_BASE_URL, AUTH_TOKEN_KEY } from '../src/config.js'; // <-- Importar config
+
+// --- INICIO: VERIFICACIÓN DE AUTENTICACIÓN ---
+const token = localStorage.getItem(AUTH_TOKEN_KEY);
+if (!token) {
+    // Si no hay token, redirigir a la página de login
+    window.location.href = '/admin-login.html';
+    // Detener la ejecución del resto del script si no está autenticado
+    throw new Error("No autenticado. Redirigiendo al login."); 
+}
+// --- FIN: VERIFICACIÓN DE AUTENTICACIÓN ---
 
 const adminApp = {
-    apiBaseUrl: 'http://localhost:3000',
+    apiBaseUrl: API_BASE_URL, // <-- Usar la constante importada
     products: [],
     imagesToUpload: [],
     viewState: {
@@ -16,7 +27,7 @@ const adminApp = {
         this.addEventListeners();
         this.loadProducts();
         createIcons({ icons });
-        this.showView('list-view'); // Asegurarnos de que la vista inicial sea la lista
+        this.showView('list-view'); 
     },
 
     // --- NUEVA FUNCIÓN PARA CAMBIAR DE VISTA ---
@@ -61,14 +72,38 @@ const adminApp = {
         document.getElementById('has_production_time').addEventListener('change', (e) => {
             document.getElementById('production-time-container').classList.toggle('hidden', !e.target.checked);
         });
+        // --- AÑADIDO: Event listener para el botón de logout ---
+        const logoutBtn = document.getElementById('logout-btn');
+        if(logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem(AUTH_TOKEN_KEY); // Eliminar el token
+                window.location.href = '/admin-login.html'; // Redirigir al login
+            });
+        }
+    },
+
+    getAuthHeaders() {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        return {
+            'Authorization': `Bearer ${token}`,
+            // Añadir 'Content-Type' solo cuando se envía JSON
+        };
     },
     
     async loadProducts() {
         try {
+            // --- MODIFICADO: Añadir cabecera de autorización ---
             const response = await fetch(`${this.apiBaseUrl}/api/products?all=true`, { 
-                headers: { 'x-admin-secret': 'tu-clave-secreta-aqui' } 
+                headers: this.getAuthHeaders() // <-- Usar la nueva función
             });
-            if (!response.ok) throw new Error((await response.json()).error);
+            // --- FIN MODIFICACIÓN ---
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) { // Si el token es inválido/expirado
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error((await response.json()).error);
+            }
             this.products = await response.json();
             this.renderProductList();
         } catch (error) { 
@@ -118,7 +153,7 @@ const adminApp = {
     async handleFormSubmit(event) {
         event.preventDefault();
         const id = document.getElementById('productId').value;
-        const headers = { 'x-admin-secret': 'tu-clave-secreta-aqui' };
+        const authHeaders = this.getAuthHeaders(); // Obtener cabeceras con token
 
         let uploadedFilenames = document.getElementById('image-urls').value.split(',').filter(Boolean);
 
@@ -126,7 +161,13 @@ const adminApp = {
             const formData = new FormData();
             this.imagesToUpload.forEach(fileObj => formData.append('images', fileObj.file));
             try {
-                const uploadRes = await fetch(`${this.apiBaseUrl}/api/upload`, { method: 'POST', headers, body: formData });
+                 // --- MODIFICADO: Añadir cabecera de autorización al upload ---
+                const uploadRes = await fetch(`${this.apiBaseUrl}/api/upload`, { 
+                    method: 'POST', 
+                    headers: { 'Authorization': authHeaders.Authorization }, // Solo el token, multer no necesita Content-Type
+                    body: formData 
+                });
+                // --- FIN MODIFICACIÓN ---
                 if (!uploadRes.ok) throw new Error('Error subiendo imágenes.');
                 
                 const uploadData = await uploadRes.json();
@@ -168,12 +209,20 @@ const adminApp = {
         const method = id ? 'PUT' : 'POST';
 
         try {
+            // --- MODIFICADO: Añadir cabeceras de autorización y Content-Type ---
             const res = await fetch(url, { 
                 method, 
-                headers: { ...headers, 'Content-Type': 'application/json' }, 
+                headers: { 
+                    ...authHeaders, // Incluye el token
+                    'Content-Type': 'application/json' // Necesario para enviar JSON
+                }, 
                 body: JSON.stringify(productData) 
             });
             if (!res.ok) {
+                if (res.status === 401 || res.status === 403) { // Si el token es inválido/expirado
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
                 const errorData = await res.json(); 
                 throw new Error(errorData.error || `Error del servidor: ${res.status}`);
             }
@@ -252,8 +301,19 @@ const adminApp = {
     async deleteProduct(id) {
          if (!confirm('¿Estás seguro? Se eliminará el producto permanentemente.')) return;
          try {
-             const res = await fetch(`${this.apiBaseUrl}/api/products/${id}`, { method: 'DELETE', headers: { 'x-admin-secret': 'tu-clave-secreta-aqui' } });
-             if (!res.ok) throw new Error('Error del servidor.');
+             // --- MODIFICADO: Añadir cabecera de autorización ---
+             const res = await fetch(`${this.apiBaseUrl}/api/products/${id}`, { 
+                 method: 'DELETE', 
+                 headers: this.getAuthHeaders() // <-- Usar la nueva función
+             });
+             // --- FIN MODIFICACIÓN ---
+             if (!res.ok) { //... (manejo de errores igual que antes) ...
+                if (res.status === 401 || res.status === 403) { // Si el token es inválido/expirado
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error('Error del servidor.');
+            }
              showNotification('Producto eliminado.', 'success');
              await this.loadProducts();
          } catch (error) { showNotification(`No se pudo eliminar: ${error.message}`, 'error'); }
@@ -293,14 +353,19 @@ const adminApp = {
              const response = await fetch(`${this.apiBaseUrl}/api/products/${productId}/stock`, {
                  method: 'PATCH',
                  headers: {
-                     'Content-Type': 'application/json',
-                     'x-admin-secret': 'tu-clave-secreta-aqui'
+                     ...this.getAuthHeaders(), // Incluye el token
+                     'Content-Type': 'application/json' // Necesario para enviar JSON
                  },
                  body: JSON.stringify({ change: changeAmount })
              });
-
              const result = await response.json();
-             if (!response.ok) throw new Error(result.error || 'Error del servidor');
+             if (!response.ok) { //... (manejo de errores igual que antes) ...
+                if (response.status === 401 || response.status === 403) { // Si el token es inválido/expirado
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error || 'Error del servidor');
+             }
 
              showNotification('Stock actualizado con éxito.', 'success');
              
@@ -334,6 +399,13 @@ const adminApp = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    adminApp.init();
+    // La inicialización se moverá aquí para asegurar que el DOM esté listo
+    try {
+        adminApp.init(); 
+    } catch (error) {
+        // Si la inicialización falla (p.ej., por no estar autenticado), 
+        // el error ya habrá causado la redirección, así que podemos ignorarlo aquí.
+        console.warn("Inicialización detenida debido a redirección por autenticación.");
+    }
 });
 

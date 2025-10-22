@@ -1,11 +1,28 @@
 import { createIcons, icons } from 'lucide';
 import { showNotification } from './components/notification.js';
 import { createZoneListItem } from './components/shippingZoneListItem.js';
+import { API_BASE_URL, AUTH_TOKEN_KEY } from '../src/config.js'; // <-- Importar config
+
+// --- INICIO: VERIFICACIÓN DE AUTENTICACIÓN ---
+const token = localStorage.getItem(AUTH_TOKEN_KEY);
+if (!token) {
+    window.location.href = '/admin-login.html';
+    throw new Error("No autenticado. Redirigiendo al login."); 
+}
+// --- FIN: VERIFICACIÓN DE AUTENTICACIÓN ---
 
 const shippingApp = {
-    apiBaseUrl: 'http://localhost:3000/api/shipping',
-    adminSecret: 'tu-clave-secreta-aqui',
+    apiBaseUrl: `${API_BASE_URL}/api/shipping`, // <-- Usar constante
+    //adminSecret: 'tu-clave-secreta-aqui',
     allZones: [], // Almacenará todas las zonas para filtrar en el frontend
+
+    // --- FUNCIÓN AUXILIAR PARA OBTENER HEADERS CON TOKEN ---
+    getAuthHeaders() {
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        return {
+            'Authorization': `Bearer ${token}`,
+        };
+    },
     
     init() {
         this.addEventListeners();
@@ -23,8 +40,16 @@ const shippingApp = {
 
     async loadZones() {
         try {
-            const response = await fetch(this.apiBaseUrl, { headers: { 'x-admin-secret': this.adminSecret } });
-            if (!response.ok) throw new Error('No se pudieron cargar las zonas de envío.');
+            // --- MODIFICADO: Añadir cabecera ---
+            const response = await fetch(this.apiBaseUrl, { headers: this.getAuthHeaders() });
+            // --- FIN MODIFICACIÓN ---
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error('No se pudieron cargar las zonas de envío.');
+            }
             this.allZones = await response.json();
             this.renderZoneList();
         } catch (error) {
@@ -80,13 +105,24 @@ const shippingApp = {
         const method = id ? 'PUT' : 'POST';
 
         try {
+            // --- MODIFICADO: Añadir cabeceras ---
             const response = await fetch(url, {
                 method,
-                headers: { 'Content-Type': 'application/json', 'x-admin-secret': this.adminSecret },
+                headers: { 
+                    ...this.getAuthHeaders(), 
+                    'Content-Type': 'application/json' 
+                },
                 body: JSON.stringify(zoneData)
             });
+            // --- FIN MODIFICACIÓN ---
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Error al guardar.');
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                 if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error || 'Error al guardar.');
+            }
             
             showNotification(result.message, 'success');
             this.resetForm();
@@ -130,12 +166,20 @@ const shippingApp = {
     async deleteZone(id) {
         if (!confirm('¿Estás seguro de que quieres eliminar esta zona de envío?')) return;
         try {
+            // --- MODIFICADO: Añadir cabecera ---
             const response = await fetch(`${this.apiBaseUrl}/${id}`, {
                 method: 'DELETE',
-                headers: { 'x-admin-secret': this.adminSecret }
+                headers: this.getAuthHeaders()
             });
+            // --- FIN MODIFICACIÓN ---
             const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Error al eliminar.');
+            if (!response.ok) { //... (manejo de errores igual que antes, incluyendo redirección) ...
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem(AUTH_TOKEN_KEY);
+                    window.location.href = '/admin-login.html';
+                }
+                throw new Error(result.error || 'Error al eliminar.');
+            }
             showNotification(result.message, 'success');
             this.loadZones();
         } catch (error) {
@@ -150,5 +194,12 @@ const shippingApp = {
     }
 };
 
-shippingApp.init();
+// --- MODIFICADO: Inicializar en DOMContentLoaded ---
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        shippingApp.init();
+    } catch (error) {
+        console.warn("Inicialización detenida debido a redirección por autenticación.");
+    }
+});
 
