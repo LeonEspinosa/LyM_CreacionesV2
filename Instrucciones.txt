@@ -1,0 +1,8 @@
+Para poder ejecutar el codigo instalar
+nodejs.org descargar e instalar
+luego poner npm install y instalar las librerias
+luego para ejecutar el back poner: npm run start:backend
+para ejecutar el front poner: npm run dev
+
+Para ejecuaar el codigo de la base de datos poner:
+node setup-database-cjs
